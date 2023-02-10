@@ -4,7 +4,9 @@ async function requestQuizletInfo(itemId) {
 
 async function requestQuizletItemId(gameCode) {
  let res = await fetch("https://quizlet.com/webapi/3.8/multiplayer/game-instance?gameCode=" + gameCode);
- let obj = JSON.parse(res.text());
+ let text = await res.text();
+ console.log(text);
+ let obj = JSON.parse(text);
  return obj.gameInstance.itemId;
 }
 
@@ -32,9 +34,13 @@ async function constructDefinitionsAndTerms(terms, definitions, termIdToTerms) {
  }
 }
 
-function getQuestion() {
+function getQuestionElem() {
  const element = $(".FormattedText.notranslate.StudentPrompt-text div");
- return element.text();
+ return element;
+}
+
+function getQuestion() {
+ return getQuestionElem().text();
 }
 
 function answerCurrentQuestion(definitions, terms) {
@@ -53,8 +59,12 @@ function answerCurrentQuestion(definitions, terms) {
    break;
   }
  }
- const targetWidget = answerWidgets[answerWidgetIndex];
- targetWidget.click();
+ if (answerWidgetIndex === null) {
+  console.log("Answer not found.")
+ } else {
+  const targetWidget = answerWidgets[answerWidgetIndex];
+  targetWidget.click();
+ }
 }
 
 async function runCheat(gameCode) {
@@ -63,12 +73,22 @@ async function runCheat(gameCode) {
  let defs = [];
  let terms = [];
  await constructDefinitionsAndTerms(terms, defs, map);
- doSetTimeout(defs, terms);
+
+ registerListener(defs, terms);
 }
 
-function doSetTimeout(defs, terms) {
- setTimeout(() => {
-  answerCurrentQuestion(defs, terms);
-  doSetTimeout(defs, terms);
- }, 100);
+function registerListener(defs, terms) {
+ let lastText = null;
+ const cfg = { attributes: true, childList: true, subtree: true };
+ const callback = (mutationList, observer) => {
+   const text = mutationList[0].target.innerText;
+   if (text != lastText) {  
+    console.log("diff");
+    setTimeout(() => answerCurrentQuestion(defs, terms), 150)
+   }
+   lastText = text;
+  }
+ 
+ const observer = new MutationObserver(callback);
+ observer.observe(getQuestionElem()["0"], cfg);
 }
